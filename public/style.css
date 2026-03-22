@@ -1,0 +1,131 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background: #f0f2f5;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 10px;
+}
+
+.chat-container {
+    background: #fff;
+    width: 100%;
+    max-width: 500px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+    overflow: hidden;
+}
+
+#messages {
+    list-style: none;
+    flex: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #e5ddd5;
+}
+
+#messages li {
+    padding: 10px 15px;
+    border-radius: 15px;
+    max-width: 70%;
+    word-wrap: break-word;
+}
+
+#messages li.self {
+    background: #dcf8c6;
+    align-self: flex-end;
+}
+
+#messages li.other {
+    background: #fff;
+    align-self: flex-start;
+}
+
+.input-area {
+    display: flex;
+    padding: 10px;
+    background: #f0f2f5;
+    gap: 10px;
+}
+
+.input-area input {
+    flex: 1;
+    padding: 10px 15px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    outline: none;
+    font-size: 16px;
+}
+
+.input-area button {
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: none;
+    background: #007bff;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.input-area button:hover {
+    background: #0056b3;
+}
+
+/* Login screen */
+#loginDiv {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    justify-content: center;
+    align-items: center;
+    flex: 1;
+}
+
+#loginDiv input {
+    padding: 10px 15px;
+    border-radius: 20px;
+    border: 1px solid #ccc;
+    width: 70%;
+    font-size: 16px;
+}
+
+#loginDiv button {
+    padding: 10px 20px;
+    border-radius: 20px;
+    border: none;
+    background: #28a745;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+#loginDiv button:hover {
+    background: #1e7e34;
+}
+
+/* Responsive for mobile */
+@media (max-width: 600px) {
+    .chat-container {
+        height: 95vh;
+        max-width: 100%;
+        border-radius: 0;
+    }
+
+    #messages li {
+        max-width: 80%;
+    }
+}

@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Real-time Chat</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="chat-container">
+        <!-- Login screen -->
+        <div id="loginDiv">
+            <h2>Enter your name</h2>
+            <input id="usernameInput" placeholder="Your name">
+            <button id="loginBtn">Join Chat</button>
+        </div>
+
+        <!-- Chat screen -->
+        <div id="chatDiv" style="display:none; flex-direction: column; height: 100%;">
+            <ul id="messages"></ul>
+            <div class="input-area">
+                <input id="messageInput" placeholder="Type your message" autocomplete="off">
+                <button id="sendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        const loginDiv = document.getElementById('loginDiv');
+        const chatDiv = document.getElementById('chatDiv');
+        const usernameInput = document.getElementById('usernameInput');
+        const loginBtn = document.getElementById('loginBtn');
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const messages = document.getElementById('messages');
+
+        let username = '';
+
+        // Login
+        loginBtn.addEventListener('click', () => {
+            username = usernameInput.value.trim();
+            if (!username) return alert("Enter your name");
+            socket.emit('set username', username);
+            loginDiv.style.display = 'none';
+            chatDiv.style.display = 'flex';
+        });
+
+        // Send message
+        sendBtn.addEventListener('click', () => {
+            const msg = messageInput.value.trim();
+            if (!msg) return;
+            socket.emit('chat message', msg);
+            messageInput.value = '';
+        });
+
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendBtn.click();
+        });
+
+        // Receive message
+        socket.on('chat message', (data) => {
+            const li = document.createElement('li');
+            li.textContent = `${data.user}: ${data.message}`;
+            li.classList.add(data.user === username ? 'self' : 'other');
+            messages.appendChild(li);
+            messages.scrollTop = messages.scrollHeight; // auto-scroll
+        });
+    </script>
+</body>
+</html>
