@@ -1,72 +1,137 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Real-time Chat</title>
-    <link rel="stylesheet" href="style.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>WhatsApp-style Chat</title>
+<script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="chat-container">
-        <!-- Login screen -->
-        <div id="loginDiv">
-            <h2>Enter your name</h2>
-            <input id="usernameInput" placeholder="Your name">
-            <button id="loginBtn">Join Chat</button>
-        </div>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-        <!-- Chat screen -->
-        <div id="chatDiv" style="display:none; flex-direction: column; height: 100%;">
-            <ul id="messages"></ul>
-            <div class="input-area">
-                <input id="messageInput" placeholder="Type your message" autocomplete="off">
-                <button id="sendBtn">Send</button>
-            </div>
-        </div>
+<div class="w-full max-w-md bg-white shadow-2xl rounded-2xl flex flex-col h-[90vh] overflow-hidden">
+    <!-- Login Screen -->
+    <div id="loginDiv" class="p-6 flex flex-col items-center justify-center flex-1">
+        <h2 class="text-3xl font-bold mb-6 text-gray-800 text-center">Welcome to Chat!</h2>
+        <input id="usernameInput" placeholder="Enter your name" 
+               class="w-full p-4 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
+        <input id="avatarInput" type="file" accept="image/*"
+               class="w-full p-2 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
+        <button id="loginBtn" 
+                class="w-full bg-green-500 text-white py-3 rounded-xl hover:bg-green-600 transition font-semibold">
+            Join Chat
+        </button>
     </div>
 
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
+    <!-- Chat Screen -->
+    <div id="chatDiv" class="hidden flex flex-col h-full">
+        <!-- Header -->
+        <div class="flex items-center p-4 bg-green-500 text-white shadow">
+            <div class="font-bold text-lg">ChatWithHussain</div>
+        </div>
 
-        const loginDiv = document.getElementById('loginDiv');
-        const chatDiv = document.getElementById('chatDiv');
-        const usernameInput = document.getElementById('usernameInput');
-        const loginBtn = document.getElementById('loginBtn');
-        const messageInput = document.getElementById('messageInput');
-        const sendBtn = document.getElementById('sendBtn');
-        const messages = document.getElementById('messages');
+        <!-- Messages -->
+        <ul id="messages" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100"></ul>
 
-        let username = '';
+        <!-- Input Area -->
+        <div class="flex p-4 bg-white border-t">
+            <input id="messageInput" placeholder="Type a message" autocomplete="off" 
+                   class="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
+            <button id="sendBtn" 
+                    class="bg-green-500 text-white px-5 ml-2 rounded-full hover:bg-green-600 transition font-semibold">
+                Send
+            </button>
+        </div>
+    </div>
+</div>
 
-        // Login
-        loginBtn.addEventListener('click', () => {
-            username = usernameInput.value.trim();
-            if (!username) return alert("Enter your name");
-            socket.emit('set username', username);
-            loginDiv.style.display = 'none';
-            chatDiv.style.display = 'flex';
-        });
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
 
-        // Send message
-        sendBtn.addEventListener('click', () => {
-            const msg = messageInput.value.trim();
-            if (!msg) return;
-            socket.emit('chat message', msg);
-            messageInput.value = '';
-        });
+const loginDiv = document.getElementById('loginDiv');
+const chatDiv = document.getElementById('chatDiv');
+const usernameInput = document.getElementById('usernameInput');
+const avatarInput = document.getElementById('avatarInput');
+const loginBtn = document.getElementById('loginBtn');
+const messageInput = document.getElementById('messageInput');
+const sendBtn = document.getElementById('sendBtn');
+const messages = document.getElementById('messages');
 
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendBtn.click();
-        });
+let username = '';
+let avatar = '';
 
-        // Receive message
-        socket.on('chat message', (data) => {
-            const li = document.createElement('li');
-            li.textContent = `${data.user}: ${data.message}`;
-            li.classList.add(data.user === username ? 'self' : 'other');
-            messages.appendChild(li);
-            messages.scrollTop = messages.scrollHeight; // auto-scroll
-        });
-    </script>
+// Login
+loginBtn.addEventListener('click', () => {
+    username = usernameInput.value.trim();
+    if (!username) return alert("Enter your name 😊");
+
+    if (avatarInput.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            avatar = e.target.result;
+            startChat();
+        }
+        reader.readAsDataURL(avatarInput.files[0]);
+    } else {
+        avatar = '';
+        startChat();
+    }
+});
+
+function startChat() {
+    socket.emit('set username', { username, avatar });
+    loginDiv.style.display = 'none';
+    chatDiv.style.display = 'flex';
+}
+
+// Send message
+sendBtn.addEventListener('click', () => {
+    const msg = messageInput.value.trim();
+    if (!msg) return;
+
+    const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+    socket.emit('chat message', { username, avatar, message: msg, time });
+    messageInput.value = '';
+});
+
+messageInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendBtn.click();
+});
+
+// Receive message
+socket.on('chat message', (data) => {
+    const li = document.createElement('li');
+    li.classList.add('flex', 'items-end', 'space-x-2', 'max-w-full');
+
+    const avatarImg = document.createElement('img');
+    avatarImg.src = data.avatar || 'https://via.placeholder.com/40';
+    avatarImg.classList.add('w-10', 'h-10', 'rounded-full');
+
+    const bubble = document.createElement('div');
+    bubble.classList.add('p-3', 'rounded-2xl', 'break-words', 'shadow', 'text-sm');
+
+    const timeSpan = document.createElement('div');
+    timeSpan.classList.add('text-xs', 'text-gray-500', 'mt-1', 'text-right');
+    timeSpan.textContent = data.time;
+
+    if (data.username === username) {
+        li.classList.add('justify-end');
+        bubble.classList.add('bg-green-500', 'text-white', 'rounded-br-none');
+        bubble.textContent = data.message;
+        bubble.appendChild(timeSpan);
+        li.appendChild(bubble);
+    } else {
+        li.classList.add('justify-start');
+        bubble.classList.add('bg-white', 'text-gray-800', 'rounded-bl-none');
+        bubble.innerHTML = `<strong>${data.username}</strong>: ${data.message}`;
+        bubble.appendChild(timeSpan);
+        li.appendChild(avatarImg);
+        li.appendChild(bubble);
+    }
+
+    messages.appendChild(li);
+    messages.scrollTop = messages.scrollHeight;
+});
+</script>
 </body>
 </html>
