@@ -6,43 +6,45 @@
 <title>WhatsApp-style Chat</title>
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+<body class="bg-gray-100 flex flex-col h-screen">
 
-<div class="w-full max-w-md bg-white shadow-2xl rounded-2xl flex flex-col h-[90vh] overflow-hidden">
-    <!-- Login Screen -->
-    <div id="loginDiv" class="p-6 flex flex-col items-center justify-center flex-1">
-        <h2 class="text-3xl font-bold mb-6 text-gray-800 text-center">Welcome to Chat!</h2>
-        <input id="usernameInput" placeholder="Enter your name" 
-               class="w-full p-4 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
-        <input id="avatarInput" type="file" accept="image/*"
-               class="w-full p-2 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
-        <button id="loginBtn" 
-                class="w-full bg-green-500 text-white py-3 rounded-xl hover:bg-green-600 transition font-semibold">
-            Join Chat
-        </button>
+<div class="flex items-center justify-center p-4 bg-green-500 text-white shadow text-xl font-bold">
+        ChatWithHussain
     </div>
 
-    <!-- Chat Screen -->
-    <div id="chatDiv" class="hidden flex flex-col h-full">
-        <!-- Header -->
-        <div class="flex items-center p-4 bg-green-500 text-white shadow">
-            <div class="font-bold text-lg">ChatWithHussain</div>
-        </div>
+    <div id="chatContainer" class="flex-1 flex flex-col">
 
-        <!-- Messages -->
-        <ul id="messages" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100"></ul>
-
-        <!-- Input Area -->
-        <div class="flex p-4 bg-white border-t">
-            <input id="messageInput" placeholder="Type a message" autocomplete="off" 
-                   class="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
-            <button id="sendBtn" 
-                    class="bg-green-500 text-white px-5 ml-2 rounded-full hover:bg-green-600 transition font-semibold">
-                Send
+        <!-- Login Screen -->
+        <div id="loginDiv" class="flex-1 flex flex-col items-center justify-center p-6">
+            <h2 class="text-3xl font-bold mb-6 text-gray-800 text-center">Welcome to Chat!</h2>
+            <input id="usernameInput" placeholder="Enter your name" 
+                   class="w-full max-w-md p-4 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
+            <input id="avatarInput" type="file" accept="image/*"
+                   class="w-full max-w-md p-2 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
+            <button id="loginBtn" 
+                    class="w-full max-w-md bg-green-500 text-white py-3 rounded-xl hover:bg-green-600 transition font-semibold">
+                Join Chat
             </button>
         </div>
+
+        <!-- Chat Screen -->
+        <div id="chatDiv" class="hidden flex-1 flex flex-col">
+
+            <!-- Messages -->
+            <ul id="messages" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100"></ul>
+
+            <!-- Input Area -->
+            <div class="flex bg-white border-t p-4">
+                <input id="messageInput" placeholder="Type a message" autocomplete="off" 
+                       class="flex-1 p-3 border border-gray-300 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500">
+                <button id="sendBtn" 
+                        class="bg-green-500 text-white px-5 ml-2 rounded-full hover:bg-green-600 transition font-semibold">
+                    Send
+                </button>
+            </div>
+
+        </div>
     </div>
-</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
