@@ -10,7 +10,7 @@
 #messages { -ms-overflow-style: none; scrollbar-width: none; }
 </style>
 </head>
-<body class="bg-gray-100 h-screen flex flex-col">
+<body oncontextmenu="return false" class="bg-gray-100 h-screen flex flex-col">
 
 <!-- LOGIN -->
 <div id="loginDiv" class="flex flex-col items-center justify-center h-full p-4">
@@ -20,24 +20,29 @@
 
 <!-- CHAT -->
 <div id="chatDiv" class="hidden flex flex-col fixed inset-0 bg-gray-100">
-  <div class="bg-green-500 text-white p-4 text-lg font-semibold shadow flex items-center justify-center">
-    Chat Room
+
+  <!-- HEADER -->
+  <div class="bg-green-500 text-white p-4 text-lg font-semibold shadow flex items-center justify-between">
+    <span>Chat Room</span>
+    <div class="flex gap-2">
+      <button id="voiceCallBtn" class="bg-gray-200 text-black p-2 rounded-full hover:bg-gray-300">🎤</button>
+      <button id="videoCallBtn" class="bg-blue-500 text-white p-2 rounded-full hover:bg-blue-600 transition">📹</button>
+    </div>
   </div>
+
   <ul id="messages" class="flex-1 overflow-y-auto p-4 space-y-3"></ul>
+
   <div class="bg-white p-3 flex items-center gap-2 border-t fixed bottom-0 left-0 right-0">
     <label class="cursor-pointer bg-gray-200 p-2 rounded-full hover:bg-gray-300">📎
       <input type="file" id="imageInput" accept="image/*" class="hidden">
     </label>
-    <input id="messageInput"
-      class="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
-      placeholder="Type a message...">
+    <input id="messageInput" class="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500" placeholder="Type a message...">
     <button id="recordBtn" class="bg-gray-200 p-3 rounded-full hover:bg-gray-300">🎤</button>
-    <button id="videoCallBtn" class="bg-blue-500 text-white p-3 rounded-full hover:bg-blue-600 transition">📹</button>
     <button id="sendBtn" class="bg-green-500 text-white p-3 rounded-full hover:bg-green-600 transition">➤</button>
   </div>
 </div>
 
-<!-- VIDEO CALL -->
+<!-- VIDEO / VOICE CALL -->
 <div id="videoCallDiv" class="hidden flex flex-col items-center justify-center h-full p-4 bg-gray-100">
   <video id="localVideo" autoplay muted class="w-1/2 rounded mb-2"></video>
   <video id="remoteVideo" autoplay class="w-1/2 rounded"></video>
@@ -46,10 +51,21 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+
+document.addEventListener('keydown', function(e) {
+  if (e.key === "F12") e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'i') e.preventDefault();
+  if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 'j') e.preventDefault();
+  if (e.ctrlKey && e.key.toLowerCase() === 'u') e.preventDefault();
+});
+
+
+
+
 const socket = io();
 let username = "";
+let localStream, peerConnection, audioCallPC;
 let mediaRecorder, audioChunks = [];
-let localStream, peerConnection;
 
 const loginDiv = document.getElementById("loginDiv");
 const chatDiv = document.getElementById("chatDiv");
@@ -60,14 +76,17 @@ const messageInput = document.getElementById("messageInput");
 const sendBtn = document.getElementById("sendBtn");
 const messages = document.getElementById("messages");
 
-const recordBtn = document.getElementById("recordBtn");
 const imageInput = document.getElementById("imageInput");
-
+const recordBtn = document.getElementById("recordBtn");
+const voiceCallBtn = document.getElementById("voiceCallBtn");
 const videoCallBtn = document.getElementById("videoCallBtn");
+
 const videoCallDiv = document.getElementById("videoCallDiv");
 const localVideo = document.getElementById("localVideo");
 const remoteVideo = document.getElementById("remoteVideo");
 const endCallBtn = document.getElementById("endCallBtn");
+
+const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
 // LOGIN
 loginBtn.onclick = () => {
@@ -78,42 +97,40 @@ loginBtn.onclick = () => {
   chatDiv.style.display = "flex";
 };
 
-// SEND TEXT
+// TEXT CHAT
 sendBtn.onclick = () => {
   const msg = messageInput.value.trim();
   if(!msg) return;
   socket.emit("chat message", { username, message: msg });
   messageInput.value = "";
 };
-
-// RECEIVE TEXT
 socket.on("chat message", data => {
-  const li = document.createElement("li");
-  li.classList.add("flex","mb-2");
-  const bubble = document.createElement("div");
-  bubble.classList.add("p-3","rounded-2xl","shadow","break-words","max-w-[75%]");
+  const li = document.createElement("li"); li.classList.add("flex","mb-2");
+  const bubble = document.createElement("div"); bubble.classList.add("p-3","rounded-2xl","shadow","break-words","max-w-[75%]");
   const time = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-  const timeDiv = document.createElement("div");
-  timeDiv.classList.add("text-xs","mt-1","text-right","opacity-70");
-  timeDiv.textContent = time;
-
-  if(data.username === username){
-    li.classList.add("justify-end");
-    bubble.classList.add("bg-green-500","text-white","rounded-br-none");
-    bubble.textContent = data.message;
-  } else {
-    li.classList.add("justify-start");
-    bubble.classList.add("bg-white","text-black","rounded-bl-none");
-    bubble.innerHTML = `<strong>${data.username}</strong><br>${data.message}`;
-  }
-
-  bubble.appendChild(timeDiv);
-  li.appendChild(bubble);
-  messages.appendChild(li);
-  messages.scrollTop = messages.scrollHeight;
+  const timeDiv = document.createElement("div"); timeDiv.classList.add("text-xs","mt-1","text-right","opacity-70"); timeDiv.textContent = time;
+  if(data.username===username){ li.classList.add("justify-end"); bubble.classList.add("bg-green-500","text-white","rounded-br-none"); bubble.textContent=data.message; }
+  else { li.classList.add("justify-start"); bubble.classList.add("bg-white","text-black","rounded-bl-none"); bubble.innerHTML=`<strong>${data.username}</strong><br>${data.message}`; }
+  bubble.appendChild(timeDiv); li.appendChild(bubble); messages.appendChild(li); messages.scrollTop=messages.scrollHeight;
 });
 
-// VOICE
+// IMAGE CHAT
+imageInput.addEventListener("change", () => {
+  const file=imageInput.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload = ()=> socket.emit("image message",{ username, image: reader.result });
+  reader.readAsDataURL(file);
+});
+socket.on("image message", data => {
+  const li=document.createElement("li"); li.classList.add("flex","mb-2");
+  const bubble=document.createElement("div"); bubble.classList.add("p-2","rounded-2xl","shadow","max-w-[75%]");
+  const img=document.createElement("img"); img.src=data.image; img.classList.add("rounded-xl","max-w-full");
+  if(data.username===username){ li.classList.add("justify-end"); bubble.classList.add("bg-green-500"); }
+  else { li.classList.add("justify-start"); bubble.classList.add("bg-white"); }
+  bubble.appendChild(img); li.appendChild(bubble); messages.appendChild(li); messages.scrollTop=messages.scrollHeight;
+});
+
+// VOICE MESSAGE (recorded)
 recordBtn.addEventListener("click", async () => {
   if(!mediaRecorder || mediaRecorder.state==="inactive"){
     const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
@@ -122,8 +139,8 @@ recordBtn.addEventListener("click", async () => {
     recordBtn.textContent="⏹️";
     mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
     mediaRecorder.onstop = () => {
-      const blob = new Blob(audioChunks,{type:"audio/webm"});
-      audioChunks=[];
+      const blob = new Blob(audioChunks, { type:"audio/webm" });
+      audioChunks = [];
       const reader = new FileReader();
       reader.onload = () => socket.emit("voice message",{ username, audio: reader.result });
       reader.readAsDataURL(blob);
@@ -133,77 +150,87 @@ recordBtn.addEventListener("click", async () => {
     recordBtn.textContent="🎤";
   }
 });
-
-socket.on("voice message", data=>{
-  const li = document.createElement("li");
-  li.classList.add("flex","mb-2");
-  const bubble = document.createElement("div");
-  bubble.classList.add("p-3","rounded-2xl","shadow","max-w-[75%]","break-words");
-  const audio = document.createElement("audio");
-  audio.controls=true; audio.src=data.audio;
-
+socket.on("voice message", data => {
+  const li = document.createElement("li"); li.classList.add("flex","mb-2");
+  const bubble = document.createElement("div"); bubble.classList.add("p-3","rounded-2xl","shadow","max-w-[75%]");
+  const audio = document.createElement("audio"); audio.controls=true; audio.src=data.audio;
   if(data.username===username){ li.classList.add("justify-end"); bubble.classList.add("bg-green-500"); }
   else { li.classList.add("justify-start"); bubble.classList.add("bg-white"); }
-
-  bubble.appendChild(audio); li.appendChild(bubble);
-  messages.appendChild(li);
-  messages.scrollTop=messages.scrollHeight;
+  bubble.appendChild(audio); li.appendChild(bubble); messages.appendChild(li); messages.scrollTop=messages.scrollHeight;
 });
 
-// IMAGE
-imageInput.addEventListener("change", ()=>{
-  const file=imageInput.files[0]; if(!file) return;
-  const reader=new FileReader();
-  reader.onload = ()=> socket.emit("image message",{ username, image: reader.result });
-  reader.readAsDataURL(file);
+// LIVE VOICE CALL
+voiceCallBtn.onclick = async () => {
+  chatDiv.style.display="none"; videoCallDiv.style.display="flex";
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }, video:false
+  });
+  localVideo.srcObject=null; remoteVideo.srcObject=null;
+  audioCallPC = new RTCPeerConnection(config);
+  localStream.getTracks().forEach(track=>audioCallPC.addTrack(track, localStream));
+  audioCallPC.ontrack=e=>{ remoteVideo.srcObject=e.streams[0]; remoteVideo.muted=false; };
+  audioCallPC.onicecandidate=e=>{ if(e.candidate) socket.emit("ice-candidate",{ candidate:e.candidate,isVoice:true }); };
+  const offer = await audioCallPC.createOffer();
+  await audioCallPC.setLocalDescription(offer);
+  socket.emit("voice-offer",{ offer });
+};
+socket.on("voice-offer", async data => {
+  chatDiv.style.display="none"; videoCallDiv.style.display="flex";
+  localStream = await navigator.mediaDevices.getUserMedia({
+    audio:{ echoCancellation:true, noiseSuppression:true, autoGainControl:true }, video:false
+  });
+  localVideo.srcObject=null; remoteVideo.srcObject=null;
+  audioCallPC = new RTCPeerConnection(config);
+  localStream.getTracks().forEach(track=>audioCallPC.addTrack(track, localStream));
+  audioCallPC.ontrack=e=>{ remoteVideo.srcObject=e.streams[0]; remoteVideo.muted=false; };
+  audioCallPC.onicecandidate=e=>{ if(e.candidate) socket.emit("ice-candidate",{ candidate:e.candidate,isVoice:true }); };
+  await audioCallPC.setRemoteDescription(data.offer);
+  const answer = await audioCallPC.createAnswer();
+  await audioCallPC.setLocalDescription(answer);
+  socket.emit("voice-answer",{ answer });
 });
-
-socket.on("image message",data=>{
-  const li=document.createElement("li"); li.classList.add("flex","mb-2");
-  const bubble=document.createElement("div"); bubble.classList.add("p-2","rounded-2xl","shadow","max-w-[75%]");
-  const img=document.createElement("img"); img.src=data.image; img.classList.add("rounded-xl","max-w-full");
-  if(data.username===username){ li.classList.add("justify-end"); bubble.classList.add("bg-green-500"); }
-  else { li.classList.add("justify-start"); bubble.classList.add("bg-white"); }
-  bubble.appendChild(img); li.appendChild(bubble); messages.appendChild(li); messages.scrollTop=messages.scrollHeight;
-});
+socket.on("voice-answer", async data => { if(audioCallPC) await audioCallPC.setRemoteDescription(data.answer); });
 
 // VIDEO CALL
-const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-
-videoCallBtn.onclick = async () => {
+videoCallBtn.onclick = async ()=>{
   chatDiv.style.display="none"; videoCallDiv.style.display="flex";
-  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-  localVideo.srcObject = localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:true });
+  localVideo.srcObject=localStream;
   peerConnection = new RTCPeerConnection(config);
-  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-  peerConnection.ontrack = e => { remoteVideo.srcObject = e.streams[0]; };
-  peerConnection.onicecandidate = e => { if(e.candidate) socket.emit("ice-candidate",{ candidate:e.candidate }); };
+  localStream.getTracks().forEach(track=>peerConnection.addTrack(track, localStream));
+  peerConnection.ontrack = e=>{ remoteVideo.srcObject=e.streams[0]; };
+  peerConnection.onicecandidate=e=>{ if(e.candidate) socket.emit("ice-candidate",{ candidate:e.candidate }); };
   const offer = await peerConnection.createOffer();
   await peerConnection.setLocalDescription(offer);
   socket.emit("video-offer",{ offer });
 };
-
-socket.on("video-offer", async data => {
+socket.on("video-offer", async data=>{
   chatDiv.style.display="none"; videoCallDiv.style.display="flex";
-  localStream = await navigator.mediaDevices.getUserMedia({ video:true, audio:true });
-  localVideo.srcObject = localStream;
+  localStream = await navigator.mediaDevices.getUserMedia({ audio:true, video:true });
+  localVideo.srcObject=localStream;
   peerConnection = new RTCPeerConnection(config);
-  localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-  peerConnection.ontrack = e => remoteVideo.srcObject=e.streams[0];
-  peerConnection.onicecandidate = e => { if(e.candidate) socket.emit("ice-candidate",{ candidate:e.candidate }); };
+  localStream.getTracks().forEach(track=>peerConnection.addTrack(track, localStream));
+  peerConnection.ontrack=e=>remoteVideo.srcObject=e.streams[0];
+  peerConnection.onicecandidate=e=>{ if(e.candidate) socket.emit("ice-candidate",{ candidate:e.candidate }); };
   await peerConnection.setRemoteDescription(data.offer);
   const answer = await peerConnection.createAnswer();
   await peerConnection.setLocalDescription(answer);
   socket.emit("video-answer",{ answer });
 });
+socket.on("video-answer", async data=>{ if(peerConnection) await peerConnection.setRemoteDescription(data.answer); });
 
-socket.on("video-answer", async data => { await peerConnection.setRemoteDescription(data.answer); });
-socket.on("ice-candidate", async data => { await peerConnection.addIceCandidate(data.candidate); });
+// ICE
+socket.on("ice-candidate", async data=>{
+  if(data.isVoice && audioCallPC) await audioCallPC.addIceCandidate(data.candidate);
+  if(!data.isVoice && peerConnection) await peerConnection.addIceCandidate(data.candidate);
+});
 
-endCallBtn.onclick = () => { 
-  videoCallDiv.style.display="none"; chatDiv.style.display="flex"; 
-  peerConnection.close(); peerConnection=null;
-  localStream.getTracks().forEach(track=>track.stop());
+// END CALL
+endCallBtn.onclick = ()=>{
+  videoCallDiv.style.display="none"; chatDiv.style.display="flex";
+  if(peerConnection){ peerConnection.close(); peerConnection=null; }
+  if(audioCallPC){ audioCallPC.close(); audioCallPC=null; }
+  if(localStream) localStream.getTracks().forEach(track=>track.stop());
 };
 </script>
 </body>
