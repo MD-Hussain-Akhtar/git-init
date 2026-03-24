@@ -3,8 +3,9 @@ const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
-const PORT = 3000;
+const PORT = 4000;
 
+// Serve static files from public folder
 app.use(express.static(__dirname + '/public'));
 
 io.on('connection', (socket) => {
@@ -15,25 +16,20 @@ io.on('connection', (socket) => {
     });
 
     // Text message
-    socket.on('chat message', (data) => {
-        io.emit('chat message', data);
-    });
+    socket.on('chat message', (data) => io.emit('chat message', data));
 
     // Voice message
-    socket.on('voice message', (data) => {
-        io.emit('voice message', data);
-    });
+    socket.on('voice message', (data) => io.emit('voice message', data));
 
     // Image message
-    socket.on('image message', (data) => {
-        io.emit('image message', data);
-    });
+    socket.on('image message', (data) => io.emit('image message', data));
 
-    socket.on('disconnect', () => {
-        console.log('User disconnected');
-    });
+    // Video call signaling
+    socket.on('video-offer', data => socket.broadcast.emit('video-offer', data));
+    socket.on('video-answer', data => socket.broadcast.emit('video-answer', data));
+    socket.on('ice-candidate', data => socket.broadcast.emit('ice-candidate', data));
+
+    socket.on('disconnect', () => console.log('User disconnected'));
 });
 
-http.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+http.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
