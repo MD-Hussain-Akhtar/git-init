@@ -2,136 +2,199 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>WhatsApp-style Chat</title>
+<title>Chat App</title>
 <script src="https://cdn.tailwindcss.com"></script>
+<style>
+  /* Hide scrollbar */
+  #messages::-webkit-scrollbar { display: none; }
+  #messages { -ms-overflow-style: none; scrollbar-width: none; }
+</style>
 </head>
+
 <body class="bg-gray-100 h-screen flex flex-col">
 
-  <!-- Fixed Navbar -->
-  <div class="fixed top-0 left-0 w-full bg-green-500  text-white shadow p-4 text-xl font-bold z-50">
-      ChatWithHussain
-  </div>
+<!-- Login Screen -->
+<div id="loginDiv" class="flex flex-col items-center justify-center h-full">
+  <input id="usernameInput" placeholder="Enter name" class="p-3 border rounded mb-3">
+  <button id="loginBtn" class="bg-green-500 text-white px-6 py-2 rounded">Join</button>
+</div>
 
-  <!-- Login Screen -->
-  <div id="loginDiv" class="flex-1 flex flex-col items-center justify-center p-6 mt-16">
-      <h2 class="text-3xl font-bold mb-6 text-gray-800 text-center">Welcome to Chat!</h2>
-      <input id="usernameInput" placeholder="Enter your name" 
-             class="w-full max-w-md p-4 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
-      <input id="avatarInput" type="file" accept="image/*"
-             class="w-full max-w-md p-2 mb-4 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500">
-      <button id="loginBtn" 
-              class="w-full max-w-md bg-green-500 text-white py-3 rounded-xl hover:bg-green-600 transition font-semibold">
-          Join Chat
-      </button>
-  </div>
+<!-- Chat Screen -->
+<div id="chatDiv" class="hidden flex flex-col fixed top-0 bottom-0 w-full bg-gray-100">
 
-  <!-- Chat Screen -->
-  <div id="chatDiv" class="hidden flex flex-col fixed top-16 bottom-0 left-0 right-0 min-h-0">
-      
-      <!-- Messages (scrollable) -->
-      <ul id="messages" class="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100">
-          <!-- Messages will appear here -->
-      </ul>
+  <!-- Header -->
+  <div class="bg-green-500 text-white p-4 text-lg font-semibold shadow">Chat Room</div>
 
-      <!-- Input Area (always bottom) -->
-      <div class="flex bg-white border-t p-2">
-          <input id="messageInput" placeholder="Type a message..." autocomplete="off"
-                 class="flex-1 p-4 rounded-l-2xl border border-gray-300  focus:outline-none focus:ring-2 focus:ring-green-500">
-          <button id="sendBtn"
-                  class="bg-green-500 text-white rounded-r-2xl px-5 ml-2  hover:bg-green-600 transition font-semibold">
-              Send
-          </button>
-      </div>
+  <!-- Messages Area -->
+  <ul id="messages" class="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-100">
+    <!-- Messages will appear here -->
+  </ul>
+
+  <!-- Input Area -->
+  <div class="bg-white p-3 flex items-center gap-2 border-t">
+    <!-- Image Upload -->
+    <label class="cursor-pointer bg-gray-200 p-2 rounded-full hover:bg-gray-300">📎
+      <input type="file" id="imageInput" accept="image/*" class="hidden">
+    </label>
+
+    <!-- Message Input -->
+    <input id="messageInput"
+      class="flex-1 px-4 py-2 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-500"
+      placeholder="Type a message...">
+
+    <!-- Voice Button -->
+    <button id="recordBtn" class="bg-gray-200 p-3 rounded-full hover:bg-gray-300">🎤</button>
+
+    <!-- Send Button -->
+    <button id="sendBtn" class="bg-green-500 text-white p-3 rounded-full hover:bg-green-600 transition">➤</button>
   </div>
+</div>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
 const socket = io();
 
-const loginDiv = document.getElementById('loginDiv');
-const chatDiv = document.getElementById('chatDiv');
-const usernameInput = document.getElementById('usernameInput');
-const avatarInput = document.getElementById('avatarInput');
-const loginBtn = document.getElementById('loginBtn');
-const messageInput = document.getElementById('messageInput');
-const sendBtn = document.getElementById('sendBtn');
-const messages = document.getElementById('messages');
+let username = "";
+let mediaRecorder;
+let audioChunks = [];
 
-let username = '';
-let avatar = '';
+const loginDiv = document.getElementById("loginDiv");
+const chatDiv = document.getElementById("chatDiv");
+const usernameInput = document.getElementById("usernameInput");
+const loginBtn = document.getElementById("loginBtn");
+
+const messageInput = document.getElementById("messageInput");
+const sendBtn = document.getElementById("sendBtn");
+const messages = document.getElementById("messages");
+
+const recordBtn = document.getElementById("recordBtn");
+const imageInput = document.getElementById("imageInput");
 
 // Login
-loginBtn.addEventListener('click', () => {
-    username = usernameInput.value.trim();
-    if (!username) return alert("Enter your name 😊");
+loginBtn.onclick = () => {
+  username = usernameInput.value.trim();
+  if(!username) return alert("Enter name");
+  socket.emit("set username", { username });
+  loginDiv.style.display = "none";
+  chatDiv.style.display = "flex";
+};
 
-    if (avatarInput.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            avatar = e.target.result;
-            startChat();
-        }
-        reader.readAsDataURL(avatarInput.files[0]);
-    } else {
-        avatar = '';
-        startChat();
-    }
+// Send text
+sendBtn.onclick = () => {
+  const msg = messageInput.value.trim();
+  if(!msg) return;
+  socket.emit("chat message", { username, message: msg });
+  messageInput.value = "";
+};
+
+// TEXT MESSAGE
+socket.on("chat message", (data) => {
+  const li = document.createElement("li");
+  li.classList.add("flex", "mb-2");
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("p-3", "rounded-2xl", "max-w-xs", "shadow");
+
+  const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
+  const timeDiv = document.createElement("div");
+  timeDiv.classList.add("text-xs", "mt-1", "text-right", "opacity-70");
+  timeDiv.textContent = time;
+
+  if(data.username === username){
+    li.classList.add("justify-end");
+    bubble.classList.add("bg-green-500", "text-white", "rounded-br-none");
+    bubble.textContent = data.message;
+  } else {
+    li.classList.add("justify-start");
+    bubble.classList.add("bg-white", "text-black", "rounded-bl-none");
+    bubble.innerHTML = `<strong>${data.username}</strong><br>${data.message}`;
+  }
+
+  bubble.appendChild(timeDiv);
+  li.appendChild(bubble);
+  messages.appendChild(li);
+  messages.scrollTop = messages.scrollHeight;
 });
 
-function startChat() {
-    socket.emit('set username', { username, avatar });
-    loginDiv.style.display = 'none';
-    chatDiv.style.display = 'flex';
-}
+// VOICE MESSAGE
+recordBtn.addEventListener("click", async () => {
+  if(!mediaRecorder || mediaRecorder.state === "inactive"){
+    const stream = await navigator.mediaDevices.getUserMedia({ audio:true });
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.start();
+    recordBtn.textContent = "⏹️";
 
-// Send message
-sendBtn.addEventListener('click', () => {
-    const msg = messageInput.value.trim();
-    if (!msg) return;
-
-    const time = new Date().toLocaleTimeString([], { hour:'2-digit', minute:'2-digit' });
-    socket.emit('chat message', { username, avatar, message: msg, time });
-    messageInput.value = '';
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(audioChunks, { type:"audio/webm" });
+      audioChunks = [];
+      const reader = new FileReader();
+      reader.onload = () => socket.emit("voice message",{ username, audio: reader.result });
+      reader.readAsDataURL(blob);
+    };
+  } else {
+    mediaRecorder.stop();
+    recordBtn.textContent = "🎤";
+  }
 });
 
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') sendBtn.click();
+socket.on("voice message", (data)=>{
+  const li = document.createElement("li");
+  li.classList.add("flex","mb-2");
+
+  const bubble = document.createElement("div");
+  bubble.classList.add("p-3","rounded-2xl","shadow","max-w-xs");
+
+  const audio = document.createElement("audio");
+  audio.controls = true;
+  audio.src = data.audio;
+
+  if(data.username === username){
+    li.classList.add("justify-end");
+    bubble.classList.add("bg-green-500");
+  } else {
+    li.classList.add("justify-start");
+    bubble.classList.add("bg-white");
+  }
+
+  bubble.appendChild(audio);
+  li.appendChild(bubble);
+  messages.appendChild(li);
+  messages.scrollTop = messages.scrollHeight;
 });
 
-// Receive message
-socket.on('chat message', (data) => {
-    const li = document.createElement('li');
-    li.classList.add('flex', 'items-end', 'space-x-2', 'max-w-full');
+// IMAGE MESSAGE
+imageInput.addEventListener("change", ()=>{
+  const file = imageInput.files[0];
+  if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ()=> socket.emit("image message",{ username, image: reader.result });
+  reader.readAsDataURL(file);
+});
 
-    const avatarImg = document.createElement('img');
-    avatarImg.src = data.avatar || 'https://via.placeholder.com/40';
-    avatarImg.classList.add('w-10', 'h-10', 'rounded-full');
+socket.on("image message",(data)=>{
+  const li = document.createElement("li");
+  li.classList.add("flex","mb-2");
 
-    const bubble = document.createElement('div');
-    bubble.classList.add('p-3', 'rounded-2xl', 'break-words', 'shadow', 'text-sm');
+  const bubble = document.createElement("div");
+  bubble.classList.add("p-2","rounded-2xl","shadow","max-w-xs");
 
-    const timeSpan = document.createElement('div');
-    timeSpan.classList.add('text-xs', 'text-gray-500', 'mt-1', 'text-right');
-    timeSpan.textContent = data.time;
+  const img = document.createElement("img");
+  img.src = data.image;
+  img.classList.add("rounded-xl","max-w-full");
 
-    if (data.username === username) {
-        li.classList.add('justify-end');
-        bubble.classList.add('bg-green-500', 'text-white', 'rounded-br-none');
-        bubble.textContent = data.message;
-        bubble.appendChild(timeSpan);
-        li.appendChild(bubble);
-    } else {
-        li.classList.add('justify-start');
-        bubble.classList.add('bg-white', 'text-gray-800', 'rounded-bl-none');
-        bubble.innerHTML = `<strong>${data.username}</strong>: ${data.message}`;
-        bubble.appendChild(timeSpan);
-        li.appendChild(avatarImg);
-        li.appendChild(bubble);
-    }
+  if(data.username === username){
+    li.classList.add("justify-end");
+    bubble.classList.add("bg-green-500");
+  } else {
+    li.classList.add("justify-start");
+    bubble.classList.add("bg-white");
+  }
 
-    messages.appendChild(li);
-    messages.scrollTop = messages.scrollHeight;
+  bubble.appendChild(img);
+  li.appendChild(bubble);
+  messages.appendChild(li);
+  messages.scrollTop = messages.scrollHeight;
 });
 </script>
 </body>
